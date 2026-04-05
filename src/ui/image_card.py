@@ -5,7 +5,8 @@ Displays:
   - Thumbnail image (centred, max 160×160)
   - Filename (truncated with ellipsis)
   - File size in human-readable form
-  - Optional badge (e.g. "Best – Keep", "Runner-up") added in Phase 5
+  - Optional badge (e.g. "Best – Keep", "Runner-up") set in Phase 5
+  - Rich HTML tooltip showing quality metrics (set after Phase 4 analysis)
 """
 
 from __future__ import annotations
@@ -124,6 +125,13 @@ class ImageCard(QWidget):
         self._badge = badge
         self.update()
 
+    def set_metrics(self, metrics) -> None:
+        """
+        Attach quality metrics (ImageMetrics) and update the tooltip.
+        Called by the main window after AnalysisWorker emits metrics_ready.
+        """
+        self.setToolTip(_metrics_tooltip(metrics))
+
     # ------------------------------------------------------------------
     # Paint: border around card when selected / badged
     # ------------------------------------------------------------------
@@ -169,3 +177,37 @@ class ImageCard(QWidget):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit(self.path)
         super().mousePressEvent(event)
+
+
+# ---------------------------------------------------------------------------
+# Tooltip helper
+# ---------------------------------------------------------------------------
+
+def _bar(value: float, max_value: float = 100.0, width: int = 100) -> str:
+    """Return an HTML progress-bar-like string for a metric value."""
+    pct = min(100, int(value / max_value * 100)) if max_value > 0 else 0
+    filled = int(width * pct / 100)
+    color = "#4caf50" if pct >= 60 else ("#ff9800" if pct >= 30 else "#f44336")
+    bar = f"<span style='background:{color};display:inline-block;width:{filled}px;height:8px;'></span>"
+    empty = f"<span style='background:#ddd;display:inline-block;width:{width - filled}px;height:8px;'></span>"
+    return bar + empty
+
+
+def _metrics_tooltip(metrics) -> str:
+    """Build a rich HTML tooltip from an ImageMetrics object."""
+    # Normalise sharpness for display: use log scale capped at 1000
+    sharp_display = min(100.0, metrics.sharpness / 10.0)  # rough 0–100 display
+    mp = metrics.resolution / 1_000_000
+
+    return (
+        "<table style='font-size:11px; white-space:nowrap;'>"
+        f"<tr><td><b>Resolution</b></td><td>&nbsp;{metrics.width}×{metrics.height}"
+        f" ({mp:.1f} MP)</td></tr>"
+        f"<tr><td><b>Sharpness</b></td><td>&nbsp;{metrics.sharpness:.0f} "
+        f"&nbsp;{_bar(sharp_display)}</td></tr>"
+        f"<tr><td><b>Exposure</b></td><td>&nbsp;{metrics.exposure:.0f}/100 "
+        f"&nbsp;{_bar(metrics.exposure)}</td></tr>"
+        f"<tr><td><b>Noise score</b></td><td>&nbsp;{metrics.noise:.0f}/100 "
+        f"&nbsp;{_bar(metrics.noise)}</td></tr>"
+        "</table>"
+    )

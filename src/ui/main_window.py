@@ -34,6 +34,7 @@ from ui.groups_view import GroupsView
 from ui.preview_panel import PreviewPanel
 from workers.scan_worker import ScanWorker
 from workers.hash_worker import HashWorker
+from workers.analysis_worker import AnalysisWorker
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,10 @@ class MainWindow(QMainWindow):
         self._current_folder: Path | None = None
         self._scan_worker: ScanWorker | None = None
         self._hash_worker: HashWorker | None = None
+        self._analysis_worker: AnalysisWorker | None = None
         self._scanned_paths: list[Path] = []
+        # All cards keyed by path string — populated as scan results arrive
+        self._all_cards: dict[str, object] = {}   # str → ImageCard (set via groups_view)
 
         self._build_toolbar()
         self._build_central_widget()
@@ -163,6 +167,10 @@ class MainWindow(QMainWindow):
         if self._hash_worker and self._hash_worker.isRunning():
             self._hash_worker.cancel()
             self._hash_worker.wait()
+        if self._analysis_worker and self._analysis_worker.isRunning():
+            self._analysis_worker.cancel()
+            self._analysis_worker.wait()
+        self._all_cards.clear()
 
         self._scanned_paths.clear()
         self._apply_action.setEnabled(False)
@@ -265,6 +273,47 @@ class MainWindow(QMainWindow):
         )
 
         self._groups_view.show_groups(groups, unique)
+
+        # Phase 4: start quality analysis on all grouped + unique paths
+        all_paths = [p for g in groups for p in g] + unique
+        if all_paths:
+            self._start_analysis(all_paths)
+
+    # ------------------------------------------------------------------
+    # Phase 3: Quality Analysis
+    # ------------------------------------------------------------------
+
+    def _start_analysis(self, paths: list[Path]) -> None:
+        self._progress.setValue(0)
+        self._progress.setFormat("Analysing quality…")
+        self._progress.setVisible(True)
+        self.statusBar().showMessage(
+            f"Analysing image quality for {len(paths)} image(s)…"
+        )
+
+        self._analysis_worker = AnalysisWorker(paths, parent=self)
+        self._analysis_worker.metrics_ready.connect(self._on_metrics_ready)
+        self._analysis_worker.progress.connect(self._on_analysis_progress)
+        self._analysis_worker.analysis_complete.connect(self._on_analysis_complete)
+        self._analysis_worker.error.connect(
+            lambda p, m: logger.warning("Analysis error %s: %s", p, m)
+        )
+        self._analysis_worker.start()
+
+    def _on_analysis_progress(self, current: int, total: int) -> None:
+        if total > 0:
+            self._progress.setValue(int(current / total * 100))
+            self._progress.setFormat(f"Analysing {current}/{total}")
+
+    def _on_metrics_ready(self, path_str: str, metrics) -> None:
+        # Route metrics to the matching ImageCard via GroupsView
+        self._groups_view.set_card_metrics(path_str, metrics)
+
+    def _on_analysis_complete(self) -> None:
+        self._progress.setVisible(False)
+        self.statusBar().showMessage(
+            "Analysis complete. Hover any image to see quality metrics."
+        )
 
     # ------------------------------------------------------------------
     # Helpers

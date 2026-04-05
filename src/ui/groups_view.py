@@ -94,6 +94,7 @@ class GroupsView(QScrollArea):
 
         self._group_panels: list[GroupPanel] = []
         self._pixmap_cache: dict[str, tuple[QPixmap, int, int, int]] = {}
+        self._unique_cards: dict[str, "ImageCard"] = {}   # path → card for unique section
 
         self._container = QWidget()
         self._layout = QVBoxLayout(self._container)
@@ -133,6 +134,7 @@ class GroupsView(QScrollArea):
         """
         self._clear_layout()
         self._group_panels.clear()
+        self._unique_cards.clear()
 
         if not groups and not unique:
             self._show_banner("No images found.")
@@ -175,12 +177,24 @@ class GroupsView(QScrollArea):
                     )
                     card.clicked.connect(self.image_selected)
                     section.add_widget(card)
+                    self._unique_cards[path_str] = card
                 self._layout.addWidget(section)
 
         self._layout.addStretch()
 
     def group_panels(self) -> list[GroupPanel]:
         return list(self._group_panels)
+
+    def set_card_metrics(self, path: str, metrics) -> None:
+        """Route quality metrics to the matching ImageCard (group or unique)."""
+        # Check group panels first
+        for panel in self._group_panels:
+            if path in panel._cards:
+                panel._cards[path].set_metrics(metrics)
+                return
+        # Check unique section
+        if path in self._unique_cards:
+            self._unique_cards[path].set_metrics(metrics)
 
     # ------------------------------------------------------------------
     # Internal
