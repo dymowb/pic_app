@@ -1,12 +1,13 @@
 """
 Main application window.
 
-Phase 3 flow
-------------
-1. User clicks "Open Folder"
-2. ScanWorker runs → thumbnails arrive live, cached in GroupsView
-3. On scan_complete → HashWorker runs → pHash per image
-4. On hash_complete → cluster() → GroupsView.show_groups()
+Full pipeline (Phases 1–5)
+--------------------------
+1. Open Folder → ScanWorker: thumbnails cached in GroupsView
+2. scan_complete → HashWorker: pHash per image
+3. hash_complete → cluster() → GroupsView.show_groups()
+4. show_groups → AnalysisWorker: quality metrics per image
+5. analysis_complete → score_group() per group → badges + recommendations
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ from PyQt6.QtWidgets import (
 
 from config import load_settings, save_settings
 from analysis.clusterer import cluster
+from analysis.scorer import score_group, ScoringWeights
 from ui.groups_view import GroupsView
 from ui.preview_panel import PreviewPanel
 from workers.scan_worker import ScanWorker
@@ -53,8 +55,11 @@ class MainWindow(QMainWindow):
         self._hash_worker: HashWorker | None = None
         self._analysis_worker: AnalysisWorker | None = None
         self._scanned_paths: list[Path] = []
-        # All cards keyed by path string — populated as scan results arrive
-        self._all_cards: dict[str, object] = {}   # str → ImageCard (set via groups_view)
+        self._all_cards: dict[str, object] = {}
+        # Groups stored for re-scoring when weights change
+        self._current_groups: list[list[Path]] = []
+        # Metrics accumulated during analysis: path_str → ImageMetrics
+        self._metrics_store: dict[str, object] = {}
 
         self._build_toolbar()
         self._build_central_widget()
@@ -152,7 +157,10 @@ class MainWindow(QMainWindow):
     def _on_open_settings(self) -> None:
         from ui.settings_dialog import SettingsDialog
         dialog = SettingsDialog(self)
-        dialog.exec()
+        if dialog.exec():
+            # Settings were saved — re-score with new weights if we have results
+            if self._current_groups and self._metrics_store:
+                self._run_scoring()
 
     # ------------------------------------------------------------------
     # Phase 1: Scan
@@ -173,6 +181,8 @@ class MainWindow(QMainWindow):
         self._all_cards.clear()
 
         self._scanned_paths.clear()
+        self._current_groups.clear()
+        self._metrics_store.clear()
         self._apply_action.setEnabled(False)
         self._groups_view.show_banner("Scanning folder…")
         self._preview.clear()
@@ -272,6 +282,7 @@ class MainWindow(QMainWindow):
             f"{len(unique)} unique."
         )
 
+        self._current_groups = groups
         self._groups_view.show_groups(groups, unique)
 
         # Phase 4: start quality analysis on all grouped + unique paths
@@ -306,14 +317,50 @@ class MainWindow(QMainWindow):
             self._progress.setFormat(f"Analysing {current}/{total}")
 
     def _on_metrics_ready(self, path_str: str, metrics) -> None:
-        # Route metrics to the matching ImageCard via GroupsView
         self._groups_view.set_card_metrics(path_str, metrics)
+        self._metrics_store[path_str] = metrics
 
     def _on_analysis_complete(self) -> None:
         self._progress.setVisible(False)
-        self.statusBar().showMessage(
-            "Analysis complete. Hover any image to see quality metrics."
-        )
+        self._run_scoring()
+
+    # ------------------------------------------------------------------
+    # Phase 5: Scoring
+    # ------------------------------------------------------------------
+
+    def _run_scoring(self) -> None:
+        settings = load_settings()
+        w = settings.get("weights", {})
+        try:
+            weights = ScoringWeights.from_percent(
+                sharpness=w.get("sharpness", 50),
+                exposure=w.get("exposure", 30),
+                resolution=w.get("resolution", 20),
+            )
+        except ValueError:
+            weights = ScoringWeights()
+
+        for idx, group in enumerate(self._current_groups):
+            group_metrics = {
+                p: self._metrics_store[str(p)]
+                for p in group
+                if str(p) in self._metrics_store
+            }
+            if not group_metrics:
+                continue
+            self._groups_view.store_group_metrics(idx, group_metrics)
+            scores = score_group(group_metrics, weights)
+            self._groups_view.apply_group_scores(idx, scores)
+
+        if self._current_groups:
+            self._apply_action.setEnabled(True)
+            self.statusBar().showMessage(
+                "Ready. Recommendations applied — hover images for quality metrics."
+            )
+        else:
+            self.statusBar().showMessage(
+                "Analysis complete. Hover any image to see quality metrics."
+            )
 
     # ------------------------------------------------------------------
     # Helpers

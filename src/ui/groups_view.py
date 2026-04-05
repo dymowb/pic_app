@@ -94,7 +94,9 @@ class GroupsView(QScrollArea):
 
         self._group_panels: list[GroupPanel] = []
         self._pixmap_cache: dict[str, tuple[QPixmap, int, int, int]] = {}
-        self._unique_cards: dict[str, "ImageCard"] = {}   # path → card for unique section
+        self._unique_cards: dict[str, "ImageCard"] = {}
+        # Metrics stored per group index for re-scoring when weights change
+        self._group_metrics: list[dict] = []   # list[dict[Path, ImageMetrics]]
 
         self._container = QWidget()
         self._layout = QVBoxLayout(self._container)
@@ -135,6 +137,7 @@ class GroupsView(QScrollArea):
         self._clear_layout()
         self._group_panels.clear()
         self._unique_cards.clear()
+        self._group_metrics.clear()
 
         if not groups and not unique:
             self._show_banner("No images found.")
@@ -187,14 +190,38 @@ class GroupsView(QScrollArea):
 
     def set_card_metrics(self, path: str, metrics) -> None:
         """Route quality metrics to the matching ImageCard (group or unique)."""
-        # Check group panels first
         for panel in self._group_panels:
             if path in panel._cards:
                 panel._cards[path].set_metrics(metrics)
                 return
-        # Check unique section
         if path in self._unique_cards:
             self._unique_cards[path].set_metrics(metrics)
+
+    def store_group_metrics(self, group_idx: int, metrics: dict) -> None:
+        """Store metrics dict for a group so it can be re-scored when weights change."""
+        while len(self._group_metrics) <= group_idx:
+            self._group_metrics.append({})
+        self._group_metrics[group_idx] = metrics
+
+    def apply_group_scores(self, group_idx: int, scores: list) -> None:
+        """Apply a scored list to the GroupPanel at group_idx."""
+        if 0 <= group_idx < len(self._group_panels):
+            self._group_panels[group_idx].apply_scores(scores)
+
+    def rescore_all(self, weights) -> None:
+        """Re-score all groups with new weights (called when settings change)."""
+        from analysis.scorer import score_group
+        for idx, panel in enumerate(self._group_panels):
+            if idx < len(self._group_metrics) and self._group_metrics[idx]:
+                scores = score_group(self._group_metrics[idx], weights)
+                panel.apply_scores(scores)
+
+    def get_keep_paths(self) -> list[str]:
+        """Return the chosen keep path for every group (recommendation or override)."""
+        return [
+            p for panel in self._group_panels
+            if (p := panel.get_keep_path()) is not None
+        ]
 
     # ------------------------------------------------------------------
     # Internal
