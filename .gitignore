@@ -8,7 +8,7 @@ __pycache__/
 # Build outputs
 build/
 dist/
-*.spec
+# *.spec is NOT ignored — pic_app.spec is hand-crafted and committed
 
 # PyInstaller
 *.exe

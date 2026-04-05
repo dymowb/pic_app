@@ -1,11 +1,12 @@
 @echo off
 REM ============================================================
-REM  pic_app — Windows build script
-REM  Produces: dist\pic_app.exe (single-file, no console window)
+REM  pic_app — Quick build (assumes venv is already active)
 REM
-REM  Prerequisites:
+REM  For first-time setup, run setup_and_build.bat instead.
+REM
+REM  Usage:
 REM    .venv\Scripts\activate
-REM    pip install -r requirements-dev.txt
+REM    build.bat
 REM ============================================================
 
 echo [build] Cleaning previous build artifacts...
@@ -13,12 +14,7 @@ if exist build rmdir /s /q build
 if exist dist  rmdir /s /q dist
 
 echo [build] Running PyInstaller...
-pyinstaller src\main.py ^
-  --name pic_app ^
-  --onefile ^
-  --windowed ^
-  --icon assets\icons\app.ico ^
-  --add-data "assets;assets"
+pyinstaller pic_app.spec --noconfirm
 
 if %ERRORLEVEL% NEQ 0 (
     echo [build] ERROR: PyInstaller failed.
@@ -26,4 +22,4 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 echo.
-echo [build] Done. Output: dist\pic_app.exe
+echo [build] Done ^> dist\pic_app.exe
