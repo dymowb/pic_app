@@ -22,7 +22,14 @@ def compute_phash(path: Path) -> imagehash.ImageHash:
     ValueError              if path does not point to a readable image.
     """
     with Image.open(path) as img:
-        return imagehash.phash(img, hash_size=8)  # 8×8 = 64-bit hash
+        # Force a full pixel load before closing the file handle.
+        # Pillow uses lazy loading — without this, imagehash.phash() can
+        # receive an unloaded image and hang (especially on Windows).
+        img.load()
+        # Convert to RGB to normalise palette / CMYK / RGBA modes.
+        rgb = img.convert("RGB")
+
+    return imagehash.phash(rgb, hash_size=8)  # 8×8 = 64-bit hash
 
 
 def hamming_distance(a: imagehash.ImageHash, b: imagehash.ImageHash) -> int:

@@ -19,15 +19,29 @@ a = Analysis(
         ("assets", "assets"),       # bundle icons etc.
     ],
     hiddenimports=[
-        # imagehash pulls in scipy optionally — include common ones
-        "PIL._tkinter_finder",
-        "cv2",
-        "numpy",
+        # --- imagehash and its internals ---
         "imagehash",
-        # PyQt6 plugins needed for Windows rendering
+        # --- numpy modules imagehash uses for DCT-based pHash ---
+        "numpy",
+        "numpy.fft",
+        "numpy.fft.fftpack",
+        "numpy.core._multiarray_umath",
+        "numpy.core.multiarray",
+        # --- Pillow format plugins (ensures all image types open) ---
+        "PIL._tkinter_finder",
+        "PIL.JpegImagePlugin",
+        "PIL.PngImagePlugin",
+        "PIL.BmpImagePlugin",
+        "PIL.WebPImagePlugin",
+        "PIL.TiffImagePlugin",
+        "PIL.GifImagePlugin",
+        # --- OpenCV ---
+        "cv2",
+        # --- PyQt6 ---
         "PyQt6.QtCore",
         "PyQt6.QtGui",
         "PyQt6.QtWidgets",
+        "PyQt6.sip",
     ],
     hookspath=[],
     hooksconfig={},
@@ -35,9 +49,9 @@ a = Analysis(
     excludes=[
         "tkinter",
         "matplotlib",
-        "scipy",
         "IPython",
         "notebook",
+        "scipy",      # not needed; numpy handles DCT natively
     ],
     noarchive=False,
 )

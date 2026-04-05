@@ -17,12 +17,13 @@ from pathlib import Path
 
 import imagehash
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QAction, QImage, QPixmap
 from PyQt6.QtWidgets import (
     QFileDialog,
     QLabel,
     QMainWindow,
+    QMessageBox,
     QProgressBar,
     QSplitter,
     QStatusBar,
@@ -56,10 +57,14 @@ class MainWindow(QMainWindow):
         self._analysis_worker: AnalysisWorker | None = None
         self._scanned_paths: list[Path] = []
         self._all_cards: dict[str, object] = {}
-        # Groups stored for re-scoring when weights change
         self._current_groups: list[list[Path]] = []
-        # Metrics accumulated during analysis: path_str → ImageMetrics
         self._metrics_store: dict[str, object] = {}
+        # Watchdog: fires if hashing produces no progress for 30 s
+        self._hash_watchdog = QTimer(self)
+        self._hash_watchdog.setSingleShot(True)
+        self._hash_watchdog.setInterval(30_000)
+        self._hash_watchdog.timeout.connect(self._on_hash_watchdog)
+        self._last_hash_progress = 0
 
         self._build_toolbar()
         self._build_central_widget()
@@ -234,22 +239,55 @@ class MainWindow(QMainWindow):
     def _start_hashing(self) -> None:
         self._progress.setValue(0)
         self._progress.setFormat("Hashing…")
+        self._progress.setVisible(True)
         self._groups_view.show_banner(
             f"Computing similarity fingerprints for {len(self._scanned_paths)} images…"
         )
 
+        self._last_hash_progress = 0
+        self._hash_watchdog.start()  # 30 s watchdog
+
         self._hash_worker = HashWorker(self._scanned_paths, parent=self)
         self._hash_worker.progress.connect(self._on_hash_progress)
         self._hash_worker.hash_complete.connect(self._on_hash_complete)
-        self._hash_worker.error.connect(lambda p, m: logger.warning("Hash error %s: %s", p, m))
+        self._hash_worker.error.connect(self._on_hash_error)
         self._hash_worker.start()
 
     def _on_hash_progress(self, current: int, total: int) -> None:
+        self._last_hash_progress = current
+        self._hash_watchdog.start()   # reset watchdog on each tick
         if total > 0:
             self._progress.setValue(int(current / total * 100))
             self._progress.setFormat(f"Hashing {current}/{total}")
 
+    def _on_hash_error(self, path: str, message: str) -> None:
+        logger.warning("Hash error %s: %s", path, message)
+
+    def _on_hash_watchdog(self) -> None:
+        """Fires if no hash progress signal arrives within 30 s."""
+        if self._hash_worker and self._hash_worker.isRunning():
+            self._hash_worker.cancel()
+            self._hash_worker.wait(3000)
+
+        self._progress.setVisible(False)
+        self._open_action.setEnabled(True)
+        n = len(self._scanned_paths)
+        stuck_at = self._last_hash_progress
+        QMessageBox.warning(
+            self,
+            "Hashing Stalled",
+            f"The similarity hashing stopped responding after {stuck_at}/{n} images.\n\n"
+            "This usually means one image file is in an unusual format or is very large.\n\n"
+            "The app will try to continue with the images that were processed.\n"
+            "If this keeps happening, remove the problematic file and try again.",
+        )
+        # Fall through with whatever partial hashes exist (none in this path)
+        self._groups_view.show_banner(
+            "Hashing was interrupted. Open a folder to try again."
+        )
+
     def _on_hash_complete(self, raw_hashes: dict) -> None:
+        self._hash_watchdog.stop()
         # raw_hashes: dict[str, str]  path → hex hash string
         self._progress.setVisible(False)
         self._open_action.setEnabled(True)
