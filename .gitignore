@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+
+# Build outputs
+build/
+dist/
+*.spec
+
+# PyInstaller
+*.exe
+
+# Settings (user-local, not committed)
+# %APPDATA%\pic_app\settings.json is outside the repo
+
+# IDE
+.vscode/
+.idea/
+*.suo
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Test cache
+.pytest_cache/
+.coverage
+htmlcov/
