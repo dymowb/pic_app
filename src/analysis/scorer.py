@@ -89,7 +89,7 @@ def score_group(
     if len(paths) == 1:
         return [ImageScore(paths[0], 100.0, 1, "Only image in group")]
 
-    # ── Normalise each metric within the group ──────────────────────────
+    # ── Normalise each metric within the group ───────────────────────
     def _norm(values: list[float]) -> list[float]:
         lo, hi = min(values), max(values)
         if hi == lo:
@@ -106,7 +106,7 @@ def score_group(
     norm_noise  = _norm(noise_vals)
     norm_res    = _norm(resolution_vals)
 
-    # ── Composite score ──────────────────────────────────────────────────
+    # ── Composite score ────────────────────────────────────
     # noise is folded into sharpness weight equally (noise is a sharpness proxy)
     sharp_weight = weights.sharpness * 0.7
     noise_weight = weights.sharpness * 0.3
@@ -128,7 +128,7 @@ def score_group(
     else:
         scores_100 = [50.0] * len(raw_scores)
 
-    # ── Rank ─────────────────────────────────────────────────────────────
+    # ── Rank ──────────────────────────────────────────
     indexed = sorted(
         enumerate(scores_100), key=lambda x: x[1], reverse=True
     )
