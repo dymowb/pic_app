@@ -3,8 +3,6 @@ ThumbnailGrid — a responsive, scrollable grid of ImageCard widgets.
 
 All images are shown in a flat grid for Phase 2.
 Phase 3 will replace this with grouped panels (GroupPanel strips).
-
-The grid reflows its columns automatically when the widget is resized.
 """
 
 from __future__ import annotations
@@ -56,10 +54,6 @@ class ThumbnailGrid(QScrollArea):
 
         self.setWidget(self._container)
 
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
-
     def add_image(
         self,
         path: str,
@@ -68,7 +62,6 @@ class ThumbnailGrid(QScrollArea):
         img_width: int,
         img_height: int,
     ) -> None:
-        """Add a single image card to the grid (called from main thread via signal)."""
         pixmap = QPixmap.fromImage(qimage)
         card = ImageCard(path, pixmap, file_size, img_width, img_height, self._container)
         card.clicked.connect(self._on_card_clicked)
@@ -79,7 +72,6 @@ class ThumbnailGrid(QScrollArea):
         self._cards.append(card)
 
     def clear(self) -> None:
-        """Remove all cards from the grid."""
         for card in self._cards:
             self._grid.removeWidget(card)
             card.deleteLater()
@@ -87,7 +79,6 @@ class ThumbnailGrid(QScrollArea):
         self._selected_path = None
 
     def show_empty_message(self, text: str) -> None:
-        """Replace grid content with a centred message label."""
         self.clear()
         label = QLabel(text)
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -97,17 +88,12 @@ class ThumbnailGrid(QScrollArea):
     def card_count(self) -> int:
         return len(self._cards)
 
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
-
     def _column_count(self) -> int:
-        available = self.viewport().width() - 24  # subtract margins
+        available = self.viewport().width() - 24
         cols = max(1, available // (CARD_WIDTH + self._CARD_SPACING))
         return cols
 
     def _reflow(self) -> None:
-        """Re-arrange existing cards when the column count changes."""
         cols = self._column_count()
         for i, card in enumerate(self._cards):
             self._grid.addWidget(card, i // cols, i % cols)
@@ -118,14 +104,12 @@ class ThumbnailGrid(QScrollArea):
             self._reflow()
 
     def _on_card_clicked(self, path: str) -> None:
-        # Deselect previously selected card
         if self._selected_path:
             for card in self._cards:
                 if card.path == self._selected_path:
                     card.set_selected(False)
                     break
 
-        # Select new card
         self._selected_path = path
         for card in self._cards:
             if card.path == path:

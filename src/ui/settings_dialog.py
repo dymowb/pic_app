@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from config import DEFAULTS, load_settings, save_settings  # noqa: F401 (re-exported)
+from config import DEFAULTS, load_settings, save_settings  # noqa: F401
 
 
 class _LabelledSlider(QWidget):
@@ -79,7 +79,6 @@ class SettingsDialog(QDialog):
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
 
-        # --- Similarity ---
         sim_group = QGroupBox("Similarity Detection")
         sim_form = QFormLayout(sim_group)
 
@@ -99,7 +98,6 @@ class SettingsDialog(QDialog):
         sim_form.addRow("", hint)
         layout.addWidget(sim_group)
 
-        # --- Scoring weights ---
         weights_group = QGroupBox("Scoring Weights (must total 100%)")
         weights_form = QFormLayout(weights_group)
 
@@ -121,7 +119,6 @@ class SettingsDialog(QDialog):
         weights_form.addRow("Total:", self._total_label)
         layout.addWidget(weights_group)
 
-        # --- Buttons ---
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
