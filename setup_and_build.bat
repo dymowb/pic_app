@@ -8,7 +8,7 @@ echo  Output: dist\pic_app.exe
 echo ============================================================
 echo.
 
-REM ── 1. Check Python ──────────────────────────────────────────
+REM ── 1. Check Python ────────────────────────────────────
 python --version >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Python not found. Please install Python 3.11+ from https://python.org
@@ -19,7 +19,7 @@ if %ERRORLEVEL% NEQ 0 (
 for /f "tokens=2" %%v in ('python --version 2^>^&1') do set PYVER=%%v
 echo [OK] Python %PYVER% found.
 
-REM ── 2. Create virtual environment ────────────────────────────
+REM ── 2. Create virtual environment ────────────────────────
 if not exist ".venv" (
     echo [..] Creating virtual environment...
     python -m venv .venv
@@ -32,7 +32,7 @@ if not exist ".venv" (
     echo [OK] Virtual environment already exists.
 )
 
-REM ── 3. Activate venv ─────────────────────────────────────────
+REM ── 3. Activate venv ───────────────────────────────
 call .venv\Scripts\activate.bat
 if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Could not activate virtual environment.
@@ -40,11 +40,11 @@ if %ERRORLEVEL% NEQ 0 (
 )
 echo [OK] Virtual environment activated.
 
-REM ── 4. Upgrade pip silently ──────────────────────────────────
+REM ── 4. Upgrade pip silently ──────────────────────────
 echo [..] Upgrading pip...
 python -m pip install --upgrade pip --quiet
 
-REM ── 5. Install dependencies ──────────────────────────────────
+REM ── 5. Install dependencies ────────────────────────────
 echo [..] Installing dependencies (this may take a minute)...
 pip install -r requirements-dev.txt --quiet
 if %ERRORLEVEL% NEQ 0 (
@@ -53,7 +53,7 @@ if %ERRORLEVEL% NEQ 0 (
 )
 echo [OK] Dependencies installed.
 
-REM ── 6. Run tests ─────────────────────────────────────────────
+REM ── 6. Run tests ──────────────────────────────────────
 echo [..] Running tests...
 python -m pytest tests/ -q --tb=short 2>&1
 if %ERRORLEVEL% NEQ 0 (
@@ -62,12 +62,12 @@ if %ERRORLEVEL% NEQ 0 (
     pause
 )
 
-REM ── 7. Clean previous build ──────────────────────────────────
+REM ── 7. Clean previous build ────────────────────────────
 echo [..] Cleaning previous build artifacts...
 if exist build rmdir /s /q build
 if exist dist  rmdir /s /q dist
 
-REM ── 8. Build with PyInstaller ────────────────────────────────
+REM ── 8. Build with PyInstaller ────────────────────────────
 echo [..] Building exe with PyInstaller...
 pyinstaller pic_app.spec --noconfirm
 if %ERRORLEVEL% NEQ 0 (
@@ -75,7 +75,7 @@ if %ERRORLEVEL% NEQ 0 (
     pause & exit /b 1
 )
 
-REM ── 9. Done ──────────────────────────────────────────────────
+REM ── 9. Done ──────────────────────────────────────────
 echo.
 echo ============================================================
 echo  [SUCCESS] Build complete!

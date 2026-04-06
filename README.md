@@ -63,6 +63,15 @@ build.bat
 
 The output `.exe` will be in `dist/pic_app.exe`.
 
+## One-Click Setup + Build (first time)
+
+```bat
+setup_and_build.bat
+```
+
+This creates the virtual environment, installs all dependencies, runs tests,
+and builds the `.exe` in one step.
+
 ## Project Structure
 
 ```
