@@ -101,7 +101,6 @@ class ImageCard(QWidget):
         font.setPointSize(8)
         filename_label.setFont(font)
         filename_label.setToolTip(self.path)
-        # Truncate with elide in paintEvent-style — use elided text
         fm = filename_label.fontMetrics()
         elided = fm.elidedText(name, Qt.TextElideMode.ElideMiddle, CARD_WIDTH - 12)
         filename_label.setText(elided)
@@ -195,8 +194,7 @@ def _bar(value: float, max_value: float = 100.0, width: int = 100) -> str:
 
 def _metrics_tooltip(metrics) -> str:
     """Build a rich HTML tooltip from an ImageMetrics object."""
-    # Normalise sharpness for display: use log scale capped at 1000
-    sharp_display = min(100.0, metrics.sharpness / 10.0)  # rough 0–100 display
+    sharp_display = min(100.0, metrics.sharpness / 10.0)
     mp = metrics.resolution / 1_000_000
 
     return (

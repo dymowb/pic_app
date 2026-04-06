@@ -44,16 +44,11 @@ class PreviewPanel(QWidget):
 
         self._build_ui()
 
-    # ------------------------------------------------------------------
-    # UI construction
-    # ------------------------------------------------------------------
-
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(6)
 
-        # Scrollable image area
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
         self._scroll.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -68,7 +63,6 @@ class PreviewPanel(QWidget):
         self._scroll.setWidget(self._image_label)
         layout.addWidget(self._scroll, stretch=1)
 
-        # Metadata area
         meta_widget = QWidget()
         meta_layout = QVBoxLayout(meta_widget)
         meta_layout.setContentsMargins(4, 4, 4, 4)
@@ -96,7 +90,6 @@ class PreviewPanel(QWidget):
         meta_layout.addWidget(self._path_label)
         layout.addWidget(meta_widget)
 
-        # Placeholder shown when no image is selected
         self._set_placeholder()
 
     def _set_placeholder(self) -> None:
@@ -108,10 +101,6 @@ class PreviewPanel(QWidget):
         self._name_label.setText("No image selected")
         self._dims_label.setText("")
         self._path_label.setText("")
-
-    # ------------------------------------------------------------------
-    # Public API
-    # ------------------------------------------------------------------
 
     def set_image(self, path: str) -> None:
         """Load and display the image at path."""
@@ -130,7 +119,6 @@ class PreviewPanel(QWidget):
         self._current_path = p
         self._refresh_image()
 
-        # Metadata
         self._name_label.setText(p.name)
         size_str = _human_size(p.stat().st_size) if p.exists() else "?"
         self._dims_label.setText(
@@ -143,14 +131,9 @@ class PreviewPanel(QWidget):
         self._current_path = None
         self._set_placeholder()
 
-    # ------------------------------------------------------------------
-    # Internal
-    # ------------------------------------------------------------------
-
     def _refresh_image(self) -> None:
         if self._raw_pixmap is None:
             return
-        available = self._scroll.size() - self._scroll.contentsMargins().topLeft().toPointF()
         scaled = self._raw_pixmap.scaled(
             self._scroll.width() - 4,
             self._scroll.height() - 4,
