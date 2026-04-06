@@ -1,4 +1,6 @@
-"""Tests for analysis.hasher — perceptual hashing."""
+"""
+Tests for analysis.hasher — perceptual hashing.
+"""
 
 import sys
 from pathlib import Path

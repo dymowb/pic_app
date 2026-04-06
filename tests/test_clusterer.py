@@ -1,4 +1,6 @@
-"""Tests for analysis.clusterer — similarity grouping."""
+"""
+Tests for analysis.clusterer — similarity grouping.
+"""
 
 import sys
 from pathlib import Path
@@ -16,7 +18,6 @@ from analysis.hasher import compute_phash
 
 
 def _make_hash(color, size=(200, 200), tmp_path=None, name="img.jpg"):
-    """Helper: create an image and return its pHash."""
     img = Image.new("RGB", size, color=color)
     path = tmp_path / name
     img.save(path)
@@ -56,12 +57,10 @@ def test_cluster_different_images_not_grouped(tmp_path):
     """Images with very different content should NOT be grouped."""
     import numpy as np
 
-    # Checkerboard pattern — rich high-frequency content
     arr1 = np.zeros((200, 200, 3), dtype=np.uint8)
     arr1[::20, :] = 255
     arr1[:, ::20] = 255
 
-    # Concentric gradient rings — very different frequency signature
     arr2 = np.zeros((200, 200, 3), dtype=np.uint8)
     for y in range(200):
         for x in range(200):
@@ -89,7 +88,6 @@ def test_cluster_groups_sorted_by_size_descending(tmp_path):
         arr = rng.integers(0, 256, (200, 200, 3), dtype=np.uint8)
         Image.fromarray(arr).save(path)
 
-    # Group A: 3 near-identical (same base pattern, tiny shift)
     base_a = tmp_path / "base_a.png"
     _make_pattern(seed=1, path=base_a)
     paths_a = [base_a]
@@ -99,7 +97,6 @@ def test_cluster_groups_sorted_by_size_descending(tmp_path):
         img_a.save(p)
         paths_a.append(p)
 
-    # Group B: 2 near-identical (different base pattern)
     base_b = tmp_path / "base_b.png"
     _make_pattern(seed=9999, path=base_b)
     paths_b = [base_b]
@@ -114,28 +111,24 @@ def test_cluster_groups_sorted_by_size_descending(tmp_path):
 
     groups, _ = cluster(hashes, threshold=10)
 
-    # Both groups must be found and the larger one comes first
     assert len(groups) >= 1
     sizes = [len(g) for g in groups]
     assert sizes == sorted(sizes, reverse=True)
 
 
 def test_cluster_threshold_zero_only_identical(tmp_path):
-    """At threshold=0 only byte-identical hashes should cluster."""
     img = Image.new("RGB", (200, 200), color=(80, 80, 80))
     p1 = tmp_path / "a.jpg"
     p2 = tmp_path / "b.jpg"
     img.save(p1)
     img.save(p2)
 
-    # Same source → same pHash → distance 0 → grouped even at threshold 0
     hashes = {p1: compute_phash(p1), p2: compute_phash(p2)}
     groups, unique = cluster(hashes, threshold=0)
     assert len(groups) == 1
 
 
 def test_cluster_returns_all_paths(tmp_path):
-    """Every input path must appear in either groups or unique."""
     colors = [(i * 40, 0, 0) for i in range(5)]
     hashes = {}
     for i, color in enumerate(colors):

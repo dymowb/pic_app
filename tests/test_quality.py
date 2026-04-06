@@ -1,4 +1,6 @@
-"""Tests for analysis.quality — per-image quality metrics."""
+"""
+Tests for analysis.quality — per-image quality metrics.
+"""
 
 import sys
 from pathlib import Path
@@ -20,10 +22,6 @@ from analysis.quality import (
     noise,
 )
 
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 def _gray(arr: np.ndarray) -> np.ndarray:
     return cv2.cvtColor(arr.astype(np.uint8), cv2.COLOR_RGB2GRAY)
@@ -48,17 +46,10 @@ def _save(arr: np.ndarray, path: Path) -> Path:
     return path
 
 
-# ---------------------------------------------------------------------------
-# Sharpness
-# ---------------------------------------------------------------------------
-
 def test_sharpness_sharp_image_higher_than_blurry():
-    """A crisp checkerboard must score higher than a blurred version."""
     sharp_arr = _checkerboard()
     sharp_gray = _gray(sharp_arr)
-
     blurry_gray = cv2.GaussianBlur(sharp_gray, (21, 21), 0)
-
     assert sharpness(sharp_gray) > sharpness(blurry_gray)
 
 
@@ -68,18 +59,12 @@ def test_sharpness_returns_non_negative():
 
 
 def test_sharpness_uniform_image_is_near_zero():
-    """A flat uniform image has no edges — Laplacian variance is ~0."""
     arr = _solid((100, 100, 100))
     score = sharpness(_gray(arr))
     assert score < 5.0
 
 
-# ---------------------------------------------------------------------------
-# Exposure
-# ---------------------------------------------------------------------------
-
 def test_exposure_mid_grey_scores_high():
-    """A mid-grey image (mean ≈ 128) should score near 100."""
     arr = _solid((128, 128, 128))
     score = exposure(_gray(arr))
     assert score >= 55.0
@@ -98,22 +83,16 @@ def test_exposure_pure_white_scores_low():
 
 
 def test_exposure_in_range():
-    """Exposure score must always be in [0, 100]."""
     for color in [(0, 0, 0), (128, 128, 128), (255, 255, 255), (60, 120, 180)]:
         arr = _solid(color)
         s = exposure(_gray(arr))
         assert 0.0 <= s <= 100.0
 
 
-# ---------------------------------------------------------------------------
-# Noise
-# ---------------------------------------------------------------------------
-
 def test_noise_clean_image_scores_high():
-    """A smooth gradient image has low noise → high score."""
     arr = np.zeros((200, 200, 3), dtype=np.uint8)
     for i in range(200):
-        arr[:, i] = i  # horizontal gradient
+        arr[:, i] = i
     score = noise(_gray(arr))
     assert score >= 60.0
 
@@ -122,7 +101,6 @@ def test_noise_noisy_image_scores_lower_than_clean():
     rng = np.random.default_rng(42)
     clean = np.full((200, 200, 3), 128, dtype=np.uint8)
     noisy = np.clip(clean.astype(int) + rng.integers(-50, 50, clean.shape), 0, 255).astype(np.uint8)
-
     score_clean = noise(_gray(clean))
     score_noisy = noise(_gray(noisy))
     assert score_clean > score_noisy
@@ -133,10 +111,6 @@ def test_noise_in_range():
     s = noise(_gray(arr))
     assert 0.0 <= s <= 100.0
 
-
-# ---------------------------------------------------------------------------
-# compute_metrics (integration)
-# ---------------------------------------------------------------------------
 
 def test_compute_metrics_returns_dataclass(tmp_path):
     path = _save(_solid((128, 128, 128)), tmp_path / "img.png")

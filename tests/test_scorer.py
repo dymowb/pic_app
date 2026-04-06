@@ -1,4 +1,6 @@
-"""Tests for analysis.scorer — weighted scoring and recommendation."""
+"""
+Tests for analysis.scorer — weighted scoring and recommendation.
+"""
 
 import sys
 from pathlib import Path
@@ -13,10 +15,6 @@ from analysis.quality import ImageMetrics
 from analysis.scorer import ScoringWeights, ImageScore, score_group
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
 def _metrics(sharpness=100.0, exposure=80.0, noise=90.0, resolution=4_000_000,
              width=2000, height=2000) -> ImageMetrics:
     return ImageMetrics(
@@ -28,10 +26,6 @@ def _metrics(sharpness=100.0, exposure=80.0, noise=90.0, resolution=4_000_000,
 def _paths(n: int) -> list[Path]:
     return [Path(f"/fake/img_{i}.jpg") for i in range(n)]
 
-
-# ---------------------------------------------------------------------------
-# ScoringWeights
-# ---------------------------------------------------------------------------
 
 def test_weights_default_sum_to_one():
     w = ScoringWeights()
@@ -48,10 +42,6 @@ def test_weights_invalid_sum_raises():
     with pytest.raises(ValueError):
         ScoringWeights(sharpness=0.5, exposure=0.5, resolution=0.5)
 
-
-# ---------------------------------------------------------------------------
-# score_group
-# ---------------------------------------------------------------------------
 
 def test_score_group_empty():
     assert score_group({}) == []
@@ -77,7 +67,7 @@ def test_score_group_returns_all_paths(tmp_path):
 def test_score_group_rank_1_has_highest_score():
     paths = _paths(3)
     metrics = {
-        paths[0]: _metrics(sharpness=500.0, exposure=90.0),  # clearly best
+        paths[0]: _metrics(sharpness=500.0, exposure=90.0),
         paths[1]: _metrics(sharpness=100.0, exposure=50.0),
         paths[2]: _metrics(sharpness=10.0,  exposure=20.0),
     }
@@ -115,20 +105,18 @@ def test_score_group_reason_only_on_rank1():
 
 
 def test_score_group_custom_weights():
-    """Resolution-heavy weights should promote the highest-res image."""
     paths = _paths(2)
     metrics = {
-        paths[0]: _metrics(sharpness=10.0,  resolution=10_000_000),  # low sharp, high res
-        paths[1]: _metrics(sharpness=500.0, resolution=100_000),      # high sharp, low res
+        paths[0]: _metrics(sharpness=10.0,  resolution=10_000_000),
+        paths[1]: _metrics(sharpness=500.0, resolution=100_000),
     }
     w = ScoringWeights(sharpness=0.05, exposure=0.05, resolution=0.90)
     scores = score_group(metrics, weights=w)
     rank1 = next(s for s in scores if s.rank == 1)
-    assert rank1.path == paths[0]  # resolution winner should be picked
+    assert rank1.path == paths[0]
 
 
 def test_score_group_identical_metrics_no_crash():
-    """All images with identical metrics should not crash or divide by zero."""
     paths = _paths(3)
     m = _metrics()
     metrics = {p: m for p in paths}
