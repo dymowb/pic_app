@@ -163,7 +163,6 @@ class MainWindow(QMainWindow):
         from ui.settings_dialog import SettingsDialog
         dialog = SettingsDialog(self)
         if dialog.exec():
-            # Settings were saved — re-score with new weights if we have results
             if self._current_groups and self._metrics_store:
                 self._run_scoring()
 
@@ -281,18 +280,15 @@ class MainWindow(QMainWindow):
             "The app will try to continue with the images that were processed.\n"
             "If this keeps happening, remove the problematic file and try again.",
         )
-        # Fall through with whatever partial hashes exist (none in this path)
         self._groups_view.show_banner(
             "Hashing was interrupted. Open a folder to try again."
         )
 
     def _on_hash_complete(self, raw_hashes: dict) -> None:
         self._hash_watchdog.stop()
-        # raw_hashes: dict[str, str]  path → hex hash string
         self._progress.setVisible(False)
         self._open_action.setEnabled(True)
 
-        # Reconstruct imagehash objects and key by Path
         hashes: dict[Path, imagehash.ImageHash] = {}
         for path_str, hex_str in raw_hashes.items():
             try:
@@ -304,12 +300,10 @@ class MainWindow(QMainWindow):
             self._groups_view.show_banner("Could not hash any images.")
             return
 
-        # Cluster — fast enough to run on main thread for ≤ 500 images
         settings = load_settings()
         threshold = settings.get("similarity_threshold", 10)
         groups, unique = cluster(hashes, threshold=threshold)
 
-        # Update status bar
         total_dups = sum(len(g) for g in groups) - len(groups)
         space_mb = self._estimate_space_mb(groups)
         self._status_groups.setText(f"Groups: {len(groups)}")
@@ -323,7 +317,6 @@ class MainWindow(QMainWindow):
         self._current_groups = groups
         self._groups_view.show_groups(groups, unique)
 
-        # Phase 4: start quality analysis on all grouped + unique paths
         all_paths = [p for g in groups for p in g] + unique
         if all_paths:
             self._start_analysis(all_paths)
@@ -405,7 +398,6 @@ class MainWindow(QMainWindow):
     # ------------------------------------------------------------------
 
     def _estimate_space_mb(self, groups: list[list[Path]]) -> float:
-        """Sum file sizes of all non-first images in each group (rough estimate)."""
         total = 0
         for group in groups:
             for path in group[1:]:
